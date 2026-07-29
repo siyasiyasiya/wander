@@ -15,6 +15,8 @@ export interface EnrichedPlace extends PlaceBase {
   why: string
   src: string
   tag: string
+  googleMapsUri?: string
+  isLiveData?: boolean
 }
 
 function hashStr(str: string): number {

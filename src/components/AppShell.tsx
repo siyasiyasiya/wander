@@ -16,7 +16,7 @@ import { estimateTravelMinutes } from '@/lib/utils/travel'
 import { polygonAreaKm2 } from '@/lib/utils/geo'
 import { seededShuffle } from '@/lib/utils/shuffle'
 import type { GeoJSONPolygon, TravelMode } from '@/lib/isochrone/types'
-import type { PlaceBase } from '@/lib/places/types'
+import type { PlaceBase, PlaceEnriched } from '@/lib/places/types'
 
 interface Origin {
   lat: number
@@ -34,6 +34,7 @@ export function AppShell() {
   const [debouncedIntentText, setDebouncedIntentText] = useState('')
   const [polygon, setPolygon] = useState<GeoJSONPolygon | null>(null)
   const [rawPlaces, setRawPlaces] = useState<PlaceBase[]>([])
+  const [googleDataMap, setGoogleDataMap] = useState<Map<string, PlaceEnriched>>(new Map())
   const [excludeIds, setExcludeIds] = useState<string[]>([])
   const [openOnly, setOpenOnly] = useState(false)
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
@@ -69,6 +70,7 @@ export function AppShell() {
 
   const fetchPlaces = useCallback(async (poly: GeoJSONPolygon, intent: string, exclude: string[]) => {
     setIsLoadingPlaces(true)
+    setGoogleDataMap(new Map())
     try {
       const res = await fetch('/api/places', {
         method: 'POST',
@@ -79,7 +81,21 @@ export function AppShell() {
           excludeIds: exclude.length ? exclude : undefined,
         }),
       })
-      setRawPlaces(await res.json())
+      const places: PlaceBase[] = await res.json()
+      setRawPlaces(places)
+      // Fire enrichment in background — UI shows mock data instantly, upgrades when ready
+      if (places.length > 0) {
+        fetch('/api/enrich', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ places, polygon: poly, category: intent || undefined }),
+        })
+          .then((r) => r.json())
+          .then((enriched: PlaceEnriched[]) => {
+            setGoogleDataMap(new Map(enriched.map((p) => [p.place_id, p])))
+          })
+          .catch((err) => console.error('[enrich]', err))
+      }
     } catch (err) {
       console.error('[places]', err)
     } finally {
@@ -122,7 +138,24 @@ export function AppShell() {
   const isFirstRun = origin === null
   const isLoading = isLoadingIsochrone || isLoadingPlaces
 
-  const enriched = useMemo(() => rawPlaces.map((p) => enrichPlace(p, intentMode)), [rawPlaces, intentMode])
+  const enriched = useMemo(() => rawPlaces.map((p) => {
+    const mock = enrichPlace(p, intentMode)
+    const gd = googleDataMap.get(p.place_id)
+    if (!gd) return mock
+    const reviewsLabel = gd.userRatingCount != null ? `${gd.userRatingCount.toLocaleString()} reviews` : mock.reviewsLabel
+    const openLabel = gd.openNow != null ? (gd.openNow ? 'Open now' : 'Closed now') : mock.openLabel
+    return {
+      ...mock,
+      rating: gd.rating ?? mock.rating,
+      reviews: gd.userRatingCount ?? mock.reviews,
+      reviewsLabel,
+      openLabel,
+      isOpenNow: gd.openNow ?? mock.isOpenNow,
+      src: 'Google',
+      googleMapsUri: gd.googleMapsUri,
+      isLiveData: true,
+    }
+  }), [rawPlaces, intentMode, googleDataMap])
 
   const filtered = useMemo(() => (openOnly ? enriched.filter((p) => p.isOpenNow) : enriched), [enriched, openOnly])
 
@@ -163,6 +196,7 @@ export function AppShell() {
   )
 
   const blobOpacity = isLoading ? 0.06 : [0.18, 0.15, 0.13][intentMode]
+  const hasLiveData = googleDataMap.size > 0
 
   const areaLabel = useMemo(() => {
     if (!polygon) return ''
@@ -257,7 +291,7 @@ export function AppShell() {
             style={{ borderColor: theme.line }}
           >
             <span className="font-mono text-[8.5px] tracking-wide uppercase" style={{ color: theme.faint }}>
-              Ratings · mock, pending live Google
+              {hasLiveData ? 'Ratings · Google' : 'Ratings · mock'}
             </span>
             <span className="font-mono text-[8.5px] tracking-wide uppercase" style={{ color: theme.faint }}>
               Places · Foursquare OS

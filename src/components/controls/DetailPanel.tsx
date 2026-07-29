@@ -72,9 +72,21 @@ export function DetailPanel({ theme: t, place, origin, travelMode, dist, slackMi
           <p className="m-0 text-[12.5px] leading-relaxed [text-wrap:pretty]" style={{ color: t.muted }}>
             {place.why}
           </p>
-          <span className="text-[10px]" style={{ color: t.faint }}>
-            {place.src} · rating and hours are illustrative placeholders, not live Google data
-          </span>
+          {place.googleMapsUri ? (
+            <a
+              href={place.googleMapsUri}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] no-underline"
+              style={{ color: t.faint }}
+            >
+              View on Google Maps ↗
+            </a>
+          ) : (
+            <span className="text-[10px]" style={{ color: t.faint }}>
+              {place.src} · ratings and hours are illustrative placeholders
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col rounded-[10px] border overflow-hidden" style={{ borderColor: t.line }}>
