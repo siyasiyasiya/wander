@@ -5,7 +5,7 @@ import { classifyIntent } from '@/lib/intent/classify'
 
 export async function POST(req: Request) {
   const apiKey = process.env.LLM_PROVIDER_API_KEY
-  const model = process.env.LLM_MODEL ?? 'claude-haiku-4-5-20251001'
+  const model = process.env.LLM_MODEL ?? 'gemini-2.0-flash-lite'
 
   if (!apiKey) return NextResponse.json({ mode: 1, category: '' })
 

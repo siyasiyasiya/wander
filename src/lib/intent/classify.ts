@@ -1,27 +1,25 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { IntentMode } from '@/lib/theme'
 
-const SYSTEM = `You classify a user's intent for finding nearby places.
+const PROMPT = `You classify a user's intent for finding nearby places.
 Return JSON only: {"mode": 0|1|2, "category": "string"}
 - mode 0: specific need ("dentist", "pharmacy", "I need a barber", "nearest ATM")
 - mode 1: vibe/mood ("cozy coffee", "somewhere quiet to work", "good lunch spot")
 - mode 2: open/exploratory ("surprise me", "something interesting", "I don't know", "show me something good")
 - category: short search-friendly place type ("coffee", "dentist", "park") or "" if none applies
-- If input is empty, filler, or gibberish, return {"mode": 1, "category": ""}`
+- If input is empty, filler, or gibberish, return {"mode": 1, "category": ""}
+
+User input: `
 
 export async function classifyIntent(
   text: string,
   apiKey: string,
   model: string,
 ): Promise<{ mode: IntentMode; category: string }> {
-  const client = new Anthropic({ apiKey })
-  const msg = await client.messages.create({
-    model,
-    max_tokens: 64,
-    system: SYSTEM,
-    messages: [{ role: 'user', content: text }],
-  })
-  const raw = (msg.content[0] as { type: 'text'; text: string }).text.trim()
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const gemini = genAI.getGenerativeModel({ model })
+  const result = await gemini.generateContent(PROMPT + text)
+  const raw = result.response.text().trim().replace(/^```json\s*|```\s*$/g, '')
   const parsed = JSON.parse(raw)
   return {
     mode: ([0, 1, 2].includes(parsed.mode) ? parsed.mode : 1) as IntentMode,
