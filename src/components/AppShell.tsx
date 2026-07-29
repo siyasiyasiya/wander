@@ -136,6 +136,7 @@ export function AppShell() {
       reviewsLabel,
       openLabel,
       isOpenNow: gd.openNow ?? mock.isOpenNow,
+      hoursToday: gd.hoursToday ?? mock.hoursToday,
       src: 'Google',
       googleMapsUri: gd.googleMapsUri,
       isLiveData: true,

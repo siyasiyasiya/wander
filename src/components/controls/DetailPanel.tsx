@@ -21,10 +21,10 @@ export function DetailPanel({ theme: t, place, origin, travelMode, dist, slackMi
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${place.lat},${place.lng}&travelmode=${GMAPS_TRAVEL_MODE[travelMode]}`
 
   const rows = [
-    { k: 'Today', v: place.hoursToday },
+    place.isLiveData && place.hoursToday ? { k: 'Today', v: place.hoursToday } : null,
     { k: 'Status', v: place.openLabel },
     { k: 'Inside your edge by', v: slackMinutes > 0 ? `${slackMinutes} min of slack` : 'right at the edge' },
-  ]
+  ].filter((r): r is { k: string; v: string } => r !== null)
 
   return (
     <div className="flex-1 flex flex-col border-t overflow-y-auto" style={{ borderColor: t.line }}>

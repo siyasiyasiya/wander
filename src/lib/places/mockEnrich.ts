@@ -1,16 +1,16 @@
 import type { PlaceBase } from './types'
 import type { IntentMode } from '@/lib/theme'
 
-// Live rating/review/hours enrichment (Google Places) is Phase 3 of the roadmap
-// and not wired up yet. Everything here is a stable, deterministic placeholder —
-// never presented to users as real Google data (see legal note in the UI copy).
+// Provides mock copy for quote/why/tag and fallback values for rating/hours when
+// Google Places data is unavailable. Real ratings and hours override these fields
+// in AppShell when isLiveData is true.
 export interface EnrichedPlace extends PlaceBase {
   rating: number
   reviews: number
   reviewsLabel: string
   openLabel: string
   isOpenNow: boolean
-  hoursToday: string
+  hoursToday?: string
   quote: string
   why: string
   src: string

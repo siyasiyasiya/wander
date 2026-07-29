@@ -12,6 +12,7 @@ const FIELD_MASK = [
   'places.rating',
   'places.userRatingCount',
   'places.currentOpeningHours.openNow',
+  'places.regularOpeningHours.weekdayDescriptions',
   'places.googleMapsUri',
 ].join(',')
 
@@ -23,6 +24,7 @@ interface GooglePlace {
   rating?: number
   userRatingCount?: number
   currentOpeningHours?: { openNow?: boolean }
+  regularOpeningHours?: { weekdayDescriptions?: string[] }
   googleMapsUri?: string
 }
 
@@ -105,6 +107,11 @@ export async function queryPlacesGoogle(
     .filter((p) => p.location && p.displayName)
     .map((p, i) => {
       const distKm = distances[i] ?? 0
+      // weekdayDescriptions is Sun=0…Sat=6, matching JS Date.getDay()
+      const todayIdx = new Date().getDay()
+      const hoursToday = p.regularOpeningHours?.weekdayDescriptions?.[todayIdx]
+        ?.replace(/^[^:]+:\s*/, '') // strip "Monday: " prefix
+
       return {
         place_id: p.id,
         name: p.displayName!.text,
@@ -114,6 +121,7 @@ export async function queryPlacesGoogle(
         rating: p.rating,
         userRatingCount: p.userRatingCount,
         openNow: p.currentOpeningHours?.openNow,
+        hoursToday: hoursToday ?? undefined,
         googleMapsUri: p.googleMapsUri,
         utilityScore: computeUtilityScore({
           rating: p.rating,
