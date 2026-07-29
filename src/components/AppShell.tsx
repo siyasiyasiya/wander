@@ -17,6 +17,7 @@ import { polygonAreaKm2 } from '@/lib/utils/geo'
 import { seededShuffle } from '@/lib/utils/shuffle'
 import type { GeoJSONPolygon, TravelMode } from '@/lib/isochrone/types'
 import type { PlaceBase, PlaceEnriched } from '@/lib/places/types'
+import type { NarrateResult } from '@/lib/intent/narrate'
 
 interface Origin {
   lat: number
@@ -43,6 +44,7 @@ export function AppShell() {
   const [isLoadingIsochrone, setIsLoadingIsochrone] = useState(false)
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false)
   const [classifiedCategory, setClassifiedCategory] = useState('')
+  const [narrateMap, setNarrateMap] = useState<Map<string, NarrateResult>>(new Map())
 
   const intentDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -135,6 +137,26 @@ export function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [polygon, debouncedIntentText, excludeIds, fetchPlaces])
 
+  // Fire narration after each new places result — generates real per-place copy
+  useEffect(() => {
+    if (rawPlaces.length === 0) return
+    const visible = rawPlaces.slice(0, 5).map((p) => ({
+      place_id: p.place_id,
+      name: p.name,
+      categories: p.categories,
+    }))
+    fetch('/api/narrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ places: visible, mode: intentMode }),
+    })
+      .then((r) => r.json())
+      .then((data: Record<string, NarrateResult>) => setNarrateMap(new Map(Object.entries(data))))
+      .catch(() => {})
+    // intentMode intentionally excluded — copy regenerates on new places, not every toggle click
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawPlaces])
+
   // A new polygon, intent, mode, or open-only filter invalidates the current
   // selection and pagination — reset during render (not an effect) per React's
   // "adjusting state when a prop changes" pattern.
@@ -154,25 +176,35 @@ export function AppShell() {
   const isFirstRun = origin === null
   const isLoading = isLoadingIsochrone || isLoadingPlaces
 
-  const enriched = useMemo(() => rawPlaces.map((p) => {
-    const mock = enrichPlace(p, intentMode)
-    const gd = googleDataMap.get(p.place_id)
-    if (!gd) return mock
-    const reviewsLabel = gd.userRatingCount != null ? `${gd.userRatingCount.toLocaleString()} reviews` : mock.reviewsLabel
-    const openLabel = gd.openNow != null ? (gd.openNow ? 'Open now' : 'Closed now') : mock.openLabel
-    return {
-      ...mock,
-      rating: gd.rating ?? mock.rating,
-      reviews: gd.userRatingCount ?? mock.reviews,
-      reviewsLabel,
-      openLabel,
-      isOpenNow: gd.openNow ?? mock.isOpenNow,
-      hoursToday: gd.hoursToday ?? mock.hoursToday,
-      src: 'Google',
-      googleMapsUri: gd.googleMapsUri,
-      isLiveData: true,
-    }
-  }), [rawPlaces, intentMode, googleDataMap])
+  const enriched = useMemo(() => rawPlaces
+    .filter((p) => !excludeIds.includes(p.place_id))
+    .map((p) => {
+      const mock = enrichPlace(p, intentMode)
+      const gd = googleDataMap.get(p.place_id)
+      const narrated = narrateMap.get(p.place_id)
+      const base = !gd ? mock : (() => {
+        const reviewsLabel = gd.userRatingCount != null ? `${gd.userRatingCount.toLocaleString()} reviews` : mock.reviewsLabel
+        const openLabel = gd.openNow != null ? (gd.openNow ? 'Open now' : 'Closed now') : mock.openLabel
+        return {
+          ...mock,
+          rating: gd.rating ?? mock.rating,
+          reviews: gd.userRatingCount ?? mock.reviews,
+          reviewsLabel,
+          openLabel,
+          isOpenNow: gd.openNow ?? mock.isOpenNow,
+          hoursToday: gd.hoursToday ?? mock.hoursToday,
+          src: 'Google',
+          googleMapsUri: gd.googleMapsUri,
+          isLiveData: true as const,
+        }
+      })()
+      return {
+        ...base,
+        quote: narrated?.quote ?? base.quote,
+        why: narrated?.why ?? base.why,
+        tag: narrated?.tag ?? base.tag,
+      }
+    }), [rawPlaces, intentMode, googleDataMap, excludeIds, narrateMap])
 
   const filtered = useMemo(() => (openOnly ? enriched.filter((p) => p.isOpenNow) : enriched), [enriched, openOnly])
 
