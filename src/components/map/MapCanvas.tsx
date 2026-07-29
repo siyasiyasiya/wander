@@ -74,6 +74,7 @@ export function MapCanvas({
         zoom: 14,
         mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
         gestureHandling: 'greedy',
+        backgroundColor: '#f3f2e6',
       })
 
       map.addListener('click', (e: google.maps.MapMouseEvent) => {

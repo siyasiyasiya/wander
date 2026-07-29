@@ -62,7 +62,7 @@ export async function queryPlacesGoogle(
     endpoint = 'https://places.googleapis.com/v1/places:searchText'
     body = {
       textQuery: category,
-      locationRestriction: {
+      locationBias: {
         circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
       },
       maxResultCount: 20,

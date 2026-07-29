@@ -311,7 +311,7 @@ export function AppShell() {
               {hasLiveData ? 'Ratings · Google' : 'Ratings · mock'}
             </span>
             <span className="font-mono text-[8.5px] tracking-wide uppercase" style={{ color: theme.faint }}>
-              Places · Foursquare OS
+              Places · Google
             </span>
           </div>
         </aside>
