@@ -1,18 +1,57 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #eff1e8;
+  --foreground: #14200f;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-spectral);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, sans-serif;
+}
+
+a {
+  color: #6d7d16;
+}
+a:hover {
+  color: #17452c;
+}
+
+/* Themed range input — color comes from --accent/--panel-bg set inline per ink mode */
+input[type='range'].dial {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+input[type='range'].dial::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--panel-bg, #fff);
+  border: 2px solid var(--accent, #17452c);
+  cursor: pointer;
+}
+input[type='range'].dial::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--panel-bg, #fff);
+  border: 2px solid var(--accent, #17452c);
+  cursor: pointer;
+}
+input[type='range'].dial::-moz-range-track {
+  background: transparent;
 }
