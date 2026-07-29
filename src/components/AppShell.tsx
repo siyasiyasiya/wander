@@ -308,6 +308,7 @@ export function AppShell() {
             onPlaceSelect={setSelectedPlaceId}
             theme={theme}
             isFirstRun={isFirstRun}
+            isLoadingIsochrone={isLoadingIsochrone}
             blobOpacity={blobOpacity}
             timeBudget={timeBudget}
             travelMode={travelMode}

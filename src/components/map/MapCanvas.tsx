@@ -18,6 +18,7 @@ interface MapCanvasProps {
   onPlaceSelect: (placeId: string) => void
   theme: InkTheme
   isFirstRun: boolean
+  isLoadingIsochrone: boolean
   blobOpacity: number
   timeBudget: number
   travelMode: TravelMode
@@ -36,6 +37,7 @@ export function MapCanvas({
   onPlaceSelect,
   theme: t,
   isFirstRun,
+  isLoadingIsochrone,
   blobOpacity,
   timeBudget,
   travelMode,
@@ -111,13 +113,16 @@ export function MapCanvas({
     }
   }, [isLoaded])
 
-  // Keep the origin dot themed to the current ink mode
+  // Keep the origin dot themed and pulsing while isochrone loads
   useEffect(() => {
     const dot = originDotRef.current
     if (!dot) return
     dot.style.background = t.ink
     dot.style.boxShadow = `0 0 0 4px ${t.panel}`
-  }, [t])
+    dot.style.transition = 'transform 0.3s ease'
+    dot.style.transform = isLoadingIsochrone ? 'scale(1.5)' : 'scale(1)'
+    dot.style.opacity = isLoadingIsochrone ? '0.6' : '1'
+  }, [t, isLoadingIsochrone])
 
   // Draw / update the isochrone polygon
   useEffect(() => {
@@ -238,6 +243,19 @@ export function MapCanvas({
           style={{ background: t.chip, border: `1px solid ${t.border}`, color: t.ink }}
         >
           Click anywhere to drop your start point
+        </div>
+      )}
+
+      {isLoadingIsochrone && !isFirstRun && (
+        <div
+          className="absolute left-1/2 top-4 -translate-x-1/2 px-4 py-2 rounded-full flex items-center gap-2 text-[12px] font-medium"
+          style={{ background: t.chip, border: `1px solid ${t.border}`, color: t.ink }}
+        >
+          <span
+            className="w-3 h-3 rounded-full border-2 animate-spin flex-none"
+            style={{ borderColor: `${t.accent}40`, borderTopColor: t.accent }}
+          />
+          Drawing your zone…
         </div>
       )}
 
