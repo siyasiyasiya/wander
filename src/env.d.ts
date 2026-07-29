@@ -8,6 +8,8 @@ declare namespace NodeJS {
     DATABASE_URL?: string
     SUPABASE_SERVICE_ROLE_KEY?: string
     NEXT_PUBLIC_SUPABASE_URL?: string
+    // Phase 3
+    GOOGLE_PLACES_API_KEY?: string
     // Phase 4
     LLM_PROVIDER_API_KEY?: string
     LLM_MODEL?: string

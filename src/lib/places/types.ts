@@ -5,3 +5,11 @@ export interface PlaceBase {
   lng: number
   categories: string[]
 }
+
+export interface PlaceEnriched extends PlaceBase {
+  rating?: number
+  userRatingCount?: number
+  openNow?: boolean
+  googleMapsUri?: string
+  utilityScore: number
+}
