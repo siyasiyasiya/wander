@@ -42,6 +42,7 @@ export function AppShell() {
   const [wildSeed, setWildSeed] = useState(0)
   const [isLoadingIsochrone, setIsLoadingIsochrone] = useState(false)
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false)
+  const [classifiedCategory, setClassifiedCategory] = useState('')
 
   const intentDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -98,10 +99,40 @@ export function AppShell() {
     fetchIsochrone(origin.lat, origin.lng, travelMode, timeBudget)
   }, [origin, travelMode, timeBudget, fetchIsochrone])
 
-  // Re-fetch places when the polygon, intent text, or exclusion list changes
+  // Re-fetch places when the polygon, intent text, or exclusion list changes.
+  // If text is present, classify intent first (sets mode + extracts clean category).
   useEffect(() => {
     if (!polygon) return
-    fetchPlaces(polygon, debouncedIntentText, excludeIds)
+
+    const poly = polygon
+
+    async function run() {
+      let mode: IntentMode = intentMode
+      let category = debouncedIntentText
+
+      if (debouncedIntentText.trim()) {
+        try {
+          const res = await fetch('/api/intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: debouncedIntentText }),
+          })
+          const classified: { mode: IntentMode; category: string } = await res.json()
+          mode = classified.mode
+          category = classified.category
+          setIntentMode(mode)
+          setClassifiedCategory(category)
+        } catch {
+          // fallback: use raw text as category, keep current mode
+        }
+      }
+
+      fetchPlaces(poly, category, excludeIds)
+    }
+
+    run()
+    // intentMode is intentionally excluded — manual toggle clicks don't re-trigger classification
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [polygon, debouncedIntentText, excludeIds, fetchPlaces])
 
   // A new polygon, intent, mode, or open-only filter invalidates the current
