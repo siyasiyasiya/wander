@@ -68,34 +68,19 @@ export function AppShell() {
     }
   }, [])
 
-  const fetchPlaces = useCallback(async (poly: GeoJSONPolygon, intent: string, exclude: string[]) => {
+  const fetchPlaces = useCallback(async (poly: GeoJSONPolygon, intent: string, _exclude: string[]) => {
     setIsLoadingPlaces(true)
     setGoogleDataMap(new Map())
     try {
       const res = await fetch('/api/places', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          polygon: poly,
-          category: intent || undefined,
-          excludeIds: exclude.length ? exclude : undefined,
-        }),
+        body: JSON.stringify({ polygon: poly, category: intent || undefined }),
       })
-      const places: PlaceBase[] = await res.json()
+      const places: PlaceEnriched[] = await res.json()
       setRawPlaces(places)
-      // Fire enrichment in background — UI shows mock data instantly, upgrades when ready
-      if (places.length > 0) {
-        fetch('/api/enrich', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ places, polygon: poly, category: intent || undefined }),
-        })
-          .then((r) => r.json())
-          .then((enriched: PlaceEnriched[]) => {
-            setGoogleDataMap(new Map(enriched.map((p) => [p.place_id, p])))
-          })
-          .catch((err) => console.error('[enrich]', err))
-      }
+      // Places already come back with live Google ratings — no separate enrich step needed
+      setGoogleDataMap(new Map(places.map((p) => [p.place_id, p])))
     } catch (err) {
       console.error('[places]', err)
     } finally {
