@@ -2,6 +2,7 @@
 import type { GeoJSONPolygon } from '@/lib/isochrone/types'
 import type { PlaceEnriched } from '@/lib/places/types'
 import { haversineKm } from '@/lib/utils/distance'
+import { pointInPolygon } from '@/lib/utils/geo'
 import { computeUtilityScore } from '@/lib/ranking/utility'
 
 const FIELD_MASK = [
@@ -98,13 +99,17 @@ export async function queryPlacesGoogle(
   const data = await res.json()
   const googlePlaces: GooglePlace[] = data.places ?? []
 
-  const distances = googlePlaces
-    .filter((p) => p.location)
-    .map((p) => haversineKm(lat, lng, p.location!.latitude, p.location!.longitude))
+  // The Google search above uses a circle circumscribing the isochrone (Places
+  // API has no arbitrary-polygon restriction), which over-includes area outside
+  // the real walk/bike/drive-time shape. Enforce actual reachability here.
+  const withinIsochrone = googlePlaces.filter(
+    (p) => p.location && p.displayName && pointInPolygon(p.location.latitude, p.location.longitude, polygon),
+  )
+
+  const distances = withinIsochrone.map((p) => haversineKm(lat, lng, p.location!.latitude, p.location!.longitude))
   const maxDistanceKm = Math.max(...distances, 0.001)
 
-  return googlePlaces
-    .filter((p) => p.location && p.displayName)
+  return withinIsochrone
     .map((p, i) => {
       const distKm = distances[i] ?? 0
       // weekdayDescriptions is Sun=0…Sat=6, matching JS Date.getDay()
