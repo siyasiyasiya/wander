@@ -4,10 +4,6 @@ declare namespace NodeJS {
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: string
     NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?: string
     ORS_API_KEY: string
-    // Phase 2
-    DATABASE_URL?: string
-    SUPABASE_SERVICE_ROLE_KEY?: string
-    NEXT_PUBLIC_SUPABASE_URL?: string
     // Phase 3
     GOOGLE_PLACES_API_KEY?: string
     // Phase 4
