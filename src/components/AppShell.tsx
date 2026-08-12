@@ -14,9 +14,11 @@ import { enrichPlace } from '@/lib/places/mockEnrich'
 import { haversineKm } from '@/lib/utils/distance'
 import { estimateTravelMinutes } from '@/lib/utils/travel'
 import { polygonAreaKm2 } from '@/lib/utils/geo'
-import { seededShuffle } from '@/lib/utils/shuffle'
+import { computeUtilityScore } from '@/lib/ranking/utility'
+import { pickOverlooked } from '@/lib/ranking/overlooked'
 import type { GeoJSONPolygon, TravelMode } from '@/lib/isochrone/types'
 import type { PlaceBase, PlaceEnriched } from '@/lib/places/types'
+import type { RankedPlace } from '@/lib/ranking/types'
 import type { NarrateResult } from '@/lib/intent/narrate'
 
 interface Origin {
@@ -176,9 +178,13 @@ export function AppShell() {
   const isFirstRun = origin === null
   const isLoading = isLoadingIsochrone || isLoadingPlaces
 
-  const enriched = useMemo(() => rawPlaces
-    .filter((p) => !excludeIds.includes(p.place_id))
-    .map((p) => {
+  const enriched = useMemo((): RankedPlace[] => {
+    const pool = rawPlaces.filter((p) => !excludeIds.includes(p.place_id))
+    const maxDistanceKm = origin
+      ? Math.max(...pool.map((p) => haversineKm(origin.lat, origin.lng, p.lat, p.lng)), 0.001)
+      : 0.001
+
+    return pool.map((p) => {
       const mock = enrichPlace(p, intentMode)
       const gd = googleDataMap.get(p.place_id)
       const narrated = narrateMap.get(p.place_id)
@@ -198,27 +204,33 @@ export function AppShell() {
           isLiveData: true as const,
         }
       })()
+
+      const distanceKm = origin ? haversineKm(origin.lat, origin.lng, p.lat, p.lng) : 0
+      const utilityScore = computeUtilityScore({
+        rating: base.rating,
+        userRatingCount: base.reviews,
+        distanceKm,
+        maxDistanceKm,
+      })
+
       return {
         ...base,
+        utilityScore,
         quote: narrated?.quote ?? base.quote,
         why: narrated?.why ?? base.why,
         tag: narrated?.tag ?? base.tag,
       }
-    }), [rawPlaces, intentMode, googleDataMap, excludeIds, narrateMap])
+    })
+  }, [rawPlaces, intentMode, googleDataMap, excludeIds, narrateMap, origin])
 
   const filtered = useMemo(() => (openOnly ? enriched.filter((p) => p.isOpenNow) : enriched), [enriched, openOnly])
 
   const ranked = useMemo(() => {
     if (!origin) return filtered
-    return [...filtered].sort((a, b) => {
-      if (b.rating !== a.rating) return b.rating - a.rating
-      return (
-        haversineKm(origin.lat, origin.lng, a.lat, a.lng) - haversineKm(origin.lat, origin.lng, b.lat, b.lng)
-      )
-    })
+    return [...filtered].sort((a, b) => b.utilityScore - a.utilityScore)
   }, [filtered, origin])
 
-  const wildPicks = useMemo(() => seededShuffle(filtered, wildSeed + 1).slice(0, 3), [filtered, wildSeed])
+  const wildPicks = useMemo(() => pickOverlooked(filtered, wildSeed + 1, 3), [filtered, wildSeed])
 
   const listCandidates = intentMode === 2 ? wildPicks : ranked
   const totalCount = filtered.length
