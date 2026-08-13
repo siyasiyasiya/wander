@@ -47,6 +47,7 @@ export function AppShell() {
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false)
   const [classifiedCategory, setClassifiedCategory] = useState('')
   const [narrateMap, setNarrateMap] = useState<Map<string, NarrateResult>>(new Map())
+  const [realRouteMap, setRealRouteMap] = useState<Map<string, { seconds: number; meters: number }>>(new Map())
 
   const intentDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -265,12 +266,39 @@ export function AppShell() {
     return `${area.toFixed(1)} km² reachable · ${totalCount} place${totalCount !== 1 ? 's' : ''} inside`
   }, [polygon, totalCount])
 
+  // Real routed duration for the selected place — falls back to the flat-speed
+  // estimate below until it resolves (or if it fails), so no loading state needed.
+  useEffect(() => {
+    if (!selectedPlace || !origin) return
+    const key = `${selectedPlace.place_id}:${travelMode}`
+    if (realRouteMap.has(key)) return
+
+    fetch('/api/directions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        originLat: origin.lat,
+        originLng: origin.lng,
+        destLat: selectedPlace.lat,
+        destLng: selectedPlace.lng,
+        mode: travelMode,
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((route: { seconds: number; meters: number }) => {
+        setRealRouteMap((prev) => new Map(prev).set(key, route))
+      })
+      .catch(() => {})
+  }, [selectedPlace, origin, travelMode, realRouteMap])
+
   const selectedTravelInfo = useMemo(() => {
     if (!selectedPlace || !origin) return null
-    const distKm = haversineKm(origin.lat, origin.lng, selectedPlace.lat, selectedPlace.lng)
-    const minutes = estimateTravelMinutes(distKm, travelMode)
+    const real = realRouteMap.get(`${selectedPlace.place_id}:${travelMode}`)
+    const minutes = real
+      ? real.seconds / 60
+      : estimateTravelMinutes(haversineKm(origin.lat, origin.lng, selectedPlace.lat, selectedPlace.lng), travelMode)
     return { dist: `${Math.max(1, Math.round(minutes))} min`, slack: Math.round(timeBudget - minutes) }
-  }, [selectedPlace, origin, travelMode, timeBudget])
+  }, [selectedPlace, origin, travelMode, timeBudget, realRouteMap])
 
   const handleShowAll = useCallback(() => setVisibleCount(9999), [])
   const handleReroll = useCallback(() => setWildSeed((s) => s + 1), [])

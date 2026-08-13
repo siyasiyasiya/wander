@@ -1,14 +1,8 @@
-import type { GeoJSONPolygon, IsochroneParams, TravelMode } from './types'
+import type { GeoJSONPolygon, IsochroneParams } from './types'
+import { ORS_PROFILES } from './types'
 
 export interface IsochroneProvider {
   fetchIsochrone(params: IsochroneParams): Promise<GeoJSONPolygon>
-}
-
-// ORS profile names for each travel mode
-const ORS_PROFILES: Record<TravelMode, string> = {
-  walk: 'foot-walking',
-  drive: 'driving-car',
-  bike: 'cycling-regular',
 }
 
 class ORSIsochroneProvider implements IsochroneProvider {
