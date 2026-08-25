@@ -29,6 +29,7 @@ class ORSIsochroneProvider implements IsochroneProvider {
           range: [params.seconds],
           range_type: 'time',
         }),
+        signal: AbortSignal.timeout(12000),
       }
     )
 
