@@ -1,5 +1,21 @@
 import type { GeoJSONPolygon } from '@/lib/isochrone/types'
 
+// Ray casting against the isochrone's outer ring — true containment, not a
+// bounding-circle approximation, so results are only "in the time limit" if
+// they fall inside the actual reachable shape (which is rarely circular).
+export function pointInPolygon(lat: number, lng: number, polygon: GeoJSONPolygon): boolean {
+  const ring = polygon.geometry.coordinates[0] // [lng, lat][]
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]
+    const [xj, yj] = ring[j]
+    const intersect = (yi > lat) !== (yj > lat) &&
+      lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
+}
+
 // Equirectangular projection is fine at isochrone scale (a few km across).
 export function polygonAreaKm2(polygon: GeoJSONPolygon): number {
   const ring = polygon.geometry.coordinates[0]
