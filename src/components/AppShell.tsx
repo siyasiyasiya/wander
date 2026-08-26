@@ -202,6 +202,7 @@ export function AppShell() {
           hoursToday: gd.hoursToday ?? mock.hoursToday,
           src: 'Google',
           googleMapsUri: gd.googleMapsUri,
+          photoName: gd.photoName,
           isLiveData: true as const,
         }
       })()

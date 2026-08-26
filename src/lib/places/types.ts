@@ -12,5 +12,6 @@ export interface PlaceEnriched extends PlaceBase {
   openNow?: boolean
   googleMapsUri?: string
   hoursToday?: string
+  photoName?: string
   utilityScore: number
 }

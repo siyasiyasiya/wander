@@ -15,6 +15,7 @@ const FIELD_MASK = [
   'places.currentOpeningHours.openNow',
   'places.regularOpeningHours.weekdayDescriptions',
   'places.googleMapsUri',
+  'places.photos.name',
 ].join(',')
 
 interface GooglePlace {
@@ -27,6 +28,7 @@ interface GooglePlace {
   currentOpeningHours?: { openNow?: boolean }
   regularOpeningHours?: { weekdayDescriptions?: string[] }
   googleMapsUri?: string
+  photos?: { name: string }[]
 }
 
 function polygonCenter(polygon: GeoJSONPolygon): { lat: number; lng: number; radiusMeters: number } {
@@ -128,6 +130,7 @@ export async function queryPlacesGoogle(
         openNow: p.currentOpeningHours?.openNow,
         hoursToday: hoursToday ?? undefined,
         googleMapsUri: p.googleMapsUri,
+        photoName: p.photos?.[0]?.name,
         utilityScore: computeUtilityScore({
           rating: p.rating,
           userRatingCount: p.userRatingCount,

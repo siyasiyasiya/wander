@@ -35,6 +35,14 @@ export function DetailPanel({ theme: t, place, origin, travelMode, dist, slackMi
       </div>
 
       <div className="px-6 py-5 flex flex-col gap-4">
+        {place.photoName && (
+          <img
+            src={`/api/photo?name=${encodeURIComponent(place.photoName)}&w=640`}
+            alt=""
+            className="w-full h-40 rounded-[10px] object-cover"
+          />
+        )}
+
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-2.5">
             <span className="font-serif text-[26px] font-medium leading-none tracking-tight" style={{ color: t.ink }}>

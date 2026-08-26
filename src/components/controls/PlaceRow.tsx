@@ -69,14 +69,22 @@ export function PlaceRow({ place, idx, dist, variant, isSelected, theme: t, onCl
         className="flex gap-3.5 px-6 py-4 border-b cursor-pointer"
         style={{ borderColor: t.hair, background: bg }}
       >
-        <div
-          className="w-14 h-14 flex-none rounded-md flex items-end p-1"
-          style={{ backgroundImage: `repeating-linear-gradient(135deg, ${t.stripeA} 0 6px, ${t.stripeB} 6px 12px)` }}
-        >
-          <span className="font-mono text-[7px]" style={{ color: t.faint }}>
-            photo
-          </span>
-        </div>
+        {place.photoName ? (
+          <img
+            src={`/api/photo?name=${encodeURIComponent(place.photoName)}&w=112`}
+            alt=""
+            className="w-14 h-14 flex-none rounded-md object-cover"
+          />
+        ) : (
+          <div
+            className="w-14 h-14 flex-none rounded-md flex items-end p-1"
+            style={{ backgroundImage: `repeating-linear-gradient(135deg, ${t.stripeA} 0 6px, ${t.stripeB} 6px 12px)` }}
+          >
+            <span className="font-mono text-[7px]" style={{ color: t.faint }}>
+              photo
+            </span>
+          </div>
+        )}
         <div className="flex-1 flex flex-col gap-1.5 min-w-0">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-[15px] font-semibold tracking-tight" style={{ color: t.ink }}>

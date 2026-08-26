@@ -16,6 +16,7 @@ export interface EnrichedPlace extends PlaceBase {
   src: string
   tag: string
   googleMapsUri?: string
+  photoName?: string
   isLiveData?: boolean
 }
 
