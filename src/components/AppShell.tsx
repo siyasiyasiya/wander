@@ -140,26 +140,6 @@ export function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [polygon, debouncedIntentText, excludeIds, fetchPlaces])
 
-  // Fire narration after each new places result — generates real per-place copy
-  useEffect(() => {
-    if (rawPlaces.length === 0) return
-    const visible = rawPlaces.slice(0, 5).map((p) => ({
-      place_id: p.place_id,
-      name: p.name,
-      categories: p.categories,
-    }))
-    fetch('/api/narrate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ places: visible, mode: intentMode }),
-    })
-      .then((r) => r.json())
-      .then((data: Record<string, NarrateResult>) => setNarrateMap(new Map(Object.entries(data))))
-      .catch(() => {})
-    // intentMode intentionally excluded — copy regenerates on new places, not every toggle click
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawPlaces])
-
   // A new polygon, intent, mode, or open-only filter invalidates the current
   // selection and pagination — reset during render (not an effect) per React's
   // "adjusting state when a prop changes" pattern.
@@ -179,11 +159,49 @@ export function AppShell() {
   const isFirstRun = origin === null
   const isLoading = isLoadingIsochrone || isLoadingPlaces
 
+  // Real routed durations for the whole candidate pool — one batched ORS matrix
+  // call per (origin, pool, mode) rather than fetchRoute() per place — powers the
+  // utility score's proximity term. Falls back to the flat-speed estimate below
+  // until it resolves (or if it fails), so ranking never blocks on it.
+  const rawPlaceIdsKey = rawPlaces.map((p) => p.place_id).join(',')
+  useEffect(() => {
+    if (!origin || rawPlaces.length === 0) return
+    const need = rawPlaces.filter((p) => !realRouteMap.has(`${p.place_id}:${travelMode}`))
+    if (need.length === 0) return
+
+    fetch('/api/matrix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        originLat: origin.lat,
+        originLng: origin.lng,
+        destinations: need.map((p) => ({ lat: p.lat, lng: p.lng })),
+        mode: travelMode,
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data: { seconds: (number | null)[] }) => {
+        setRealRouteMap((prev) => {
+          const next = new Map(prev)
+          need.forEach((p, i) => {
+            const seconds = data.seconds[i]
+            if (seconds != null) next.set(`${p.place_id}:${travelMode}`, { seconds, meters: 0 })
+          })
+          return next
+        })
+      })
+      .catch(() => {})
+    // rawPlaceIdsKey/travelMode/origin fully describe when a new batch is needed;
+    // realRouteMap is read only to skip place/mode pairs already fetched.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origin, rawPlaceIdsKey, travelMode])
+
   const enriched = useMemo((): RankedPlace[] => {
     const pool = rawPlaces.filter((p) => !excludeIds.includes(p.place_id))
     const maxDistanceKm = origin
       ? Math.max(...pool.map((p) => haversineKm(origin.lat, origin.lng, p.lat, p.lng)), 0.001)
       : 0.001
+    const maxTravelSeconds = timeBudget * 60
 
     return pool.map((p) => {
       const mock = enrichPlace(p, intentMode)
@@ -208,11 +226,15 @@ export function AppShell() {
       })()
 
       const distanceKm = origin ? haversineKm(origin.lat, origin.lng, p.lat, p.lng) : 0
+      const realSeconds = realRouteMap.get(`${p.place_id}:${travelMode}`)?.seconds
+      const travelSeconds = origin ? (realSeconds ?? estimateTravelMinutes(distanceKm, travelMode) * 60) : 0
       const utilityScore = computeUtilityScore({
         rating: base.rating,
         userRatingCount: base.reviews,
         distanceKm,
         maxDistanceKm,
+        travelSeconds,
+        maxTravelSeconds,
       })
 
       return {
@@ -223,7 +245,7 @@ export function AppShell() {
         tag: narrated?.tag ?? base.tag,
       }
     })
-  }, [rawPlaces, intentMode, googleDataMap, excludeIds, narrateMap, origin])
+  }, [rawPlaces, intentMode, googleDataMap, excludeIds, narrateMap, origin, realRouteMap, travelMode, timeBudget])
 
   const filtered = useMemo(() => (openOnly ? enriched.filter((p) => p.isOpenNow) : enriched), [enriched, openOnly])
 
@@ -233,6 +255,32 @@ export function AppShell() {
   }, [filtered, origin])
 
   const wildPicks = useMemo(() => pickOverlooked(filtered, wildSeed + 1, 3), [filtered, wildSeed])
+
+  // Fire narration for whichever places are actually visible — the top-ranked
+  // slice for modes 0/1, or the current wild-pick trio for mode 2. Wild picks
+  // deliberately exclude the top-ranked slice (that's the point of "surprise
+  // me"), so they need their own narration request, re-fired on every reroll.
+  const narrationTargets = intentMode === 2 ? wildPicks : ranked.slice(0, 5)
+  const narrationKey = narrationTargets.map((p) => p.place_id).join(',')
+
+  useEffect(() => {
+    if (narrationTargets.length === 0) return
+    const visible = narrationTargets.map((p) => ({
+      place_id: p.place_id,
+      name: p.name,
+      categories: p.categories,
+    }))
+    fetch('/api/narrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ places: visible, mode: intentMode }),
+    })
+      .then((r) => r.json())
+      .then((data: Record<string, NarrateResult>) => setNarrateMap(new Map(Object.entries(data))))
+      .catch(() => {})
+    // narrationTargets intentionally excluded — narrationKey (its id signature) is the real dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [narrationKey, intentMode])
 
   const listCandidates = intentMode === 2 ? wildPicks : ranked
   const totalCount = filtered.length

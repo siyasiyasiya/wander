@@ -3,12 +3,29 @@ interface UtilityParams {
   userRatingCount?: number
   distanceKm: number
   maxDistanceKm: number
+  // Real routed travel time, when known, and the time budget it should be judged
+  // against. Preferred over straight-line distance — a 1km walk along a highway
+  // can take far longer than a 1km walk through a grid of streets.
+  travelSeconds?: number
+  maxTravelSeconds?: number
 }
 
-export function computeUtilityScore({ rating, userRatingCount, distanceKm, maxDistanceKm }: UtilityParams): number {
+export function computeUtilityScore({
+  rating,
+  userRatingCount,
+  distanceKm,
+  maxDistanceKm,
+  travelSeconds,
+  maxTravelSeconds,
+}: UtilityParams): number {
   const qualityScore = rating != null ? rating / 5.0 : 0.5
   const credibilityScore = userRatingCount != null ? Math.min(userRatingCount, 500) / 500 : 0
-  const proximityScore = maxDistanceKm > 0 ? Math.max(0, 1 - distanceKm / maxDistanceKm) : 0
+  const proximityScore =
+    travelSeconds != null && maxTravelSeconds
+      ? Math.max(0, 1 - travelSeconds / maxTravelSeconds)
+      : maxDistanceKm > 0
+        ? Math.max(0, 1 - distanceKm / maxDistanceKm)
+        : 0
 
   return qualityScore * 0.5 + credibilityScore * 0.3 + proximityScore * 0.2
 }

@@ -12,3 +12,14 @@ export interface RouteResult {
   seconds: number
   meters: number
 }
+
+export interface MatrixParams {
+  originLat: number
+  originLng: number
+  destinations: { lat: number; lng: number }[]
+  mode: TravelMode
+}
+
+export interface MatrixResult {
+  seconds: (number | null)[]
+}
