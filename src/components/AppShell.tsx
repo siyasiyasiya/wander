@@ -235,6 +235,7 @@ export function AppShell() {
         maxDistanceKm,
         travelSeconds,
         maxTravelSeconds,
+        mode: intentMode,
       })
 
       return {

@@ -1,3 +1,21 @@
+// mode 0 = specific need (prioritize getting there fast, matching the ask)
+// mode 1 = vibe/mood (prioritize quality + how well it matches the mood)
+// mode 2 = exploratory/"surprise me" (kept balanced — feeds pickOverlooked, not
+// a direct ranking, and there's usually no specific category to match against)
+type UtilityMode = 0 | 1 | 2
+
+interface WeightProfile {
+  quality: number
+  credibility: number
+  proximity: number
+}
+
+const WEIGHT_PROFILES: Record<UtilityMode, WeightProfile> = {
+  0: { quality: 0.25, credibility: 0.15, proximity: 0.60 },
+  1: { quality: 0.55, credibility: 0.25, proximity: 0.20 },
+  2: { quality: 0.50, credibility: 0.30, proximity: 0.20 },
+}
+
 interface UtilityParams {
   rating?: number
   userRatingCount?: number
@@ -8,6 +26,7 @@ interface UtilityParams {
   // can take far longer than a 1km walk through a grid of streets.
   travelSeconds?: number
   maxTravelSeconds?: number
+  mode?: UtilityMode
 }
 
 export function computeUtilityScore({
@@ -17,6 +36,7 @@ export function computeUtilityScore({
   maxDistanceKm,
   travelSeconds,
   maxTravelSeconds,
+  mode,
 }: UtilityParams): number {
   const qualityScore = rating != null ? rating / 5.0 : 0.5
   // Log-scaled instead of linear /500 — a handful of great reviews shouldn't be
@@ -30,5 +50,6 @@ export function computeUtilityScore({
         ? Math.max(0, 1 - distanceKm / maxDistanceKm)
         : 0
 
-  return qualityScore * 0.5 + credibilityScore * 0.3 + proximityScore * 0.2
+  const w = WEIGHT_PROFILES[mode ?? 2]
+  return qualityScore * w.quality + credibilityScore * w.credibility + proximityScore * w.proximity
 }
