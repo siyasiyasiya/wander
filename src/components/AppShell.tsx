@@ -221,6 +221,7 @@ export function AppShell() {
           src: 'Google',
           googleMapsUri: gd.googleMapsUri,
           photoName: gd.photoName,
+          relevanceScore: gd.relevanceScore,
           isLiveData: true as const,
         }
       })()
@@ -235,6 +236,7 @@ export function AppShell() {
         maxDistanceKm,
         travelSeconds,
         maxTravelSeconds,
+        relevanceScore: base.relevanceScore,
         mode: intentMode,
       })
 

@@ -119,6 +119,11 @@ export async function queryPlacesGoogle(
       const hoursToday = p.regularOpeningHours?.weekdayDescriptions?.[todayIdx]
         ?.replace(/^[^:]+:\s*/, '') // strip "Monday: " prefix
 
+      // Google's searchText already ranks by relevance to the query — capture that
+      // as a signal instead of discarding it. searchNearby has no text to match
+      // against (it's popularity-ranked), so relevance is neutral there.
+      const relevanceScore = category ? 1 - i / Math.max(withinIsochrone.length - 1, 1) : 1
+
       return {
         place_id: p.id,
         name: p.displayName!.text,
@@ -131,11 +136,13 @@ export async function queryPlacesGoogle(
         hoursToday: hoursToday ?? undefined,
         googleMapsUri: p.googleMapsUri,
         photoName: p.photos?.[0]?.name,
+        relevanceScore,
         utilityScore: computeUtilityScore({
           rating: p.rating,
           userRatingCount: p.userRatingCount,
           distanceKm: distKm,
           maxDistanceKm,
+          relevanceScore,
         }),
       }
     })

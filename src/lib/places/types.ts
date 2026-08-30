@@ -13,5 +13,6 @@ export interface PlaceEnriched extends PlaceBase {
   googleMapsUri?: string
   hoursToday?: string
   photoName?: string
+  relevanceScore?: number
   utilityScore: number
 }

@@ -8,12 +8,13 @@ interface WeightProfile {
   quality: number
   credibility: number
   proximity: number
+  relevance: number
 }
 
 const WEIGHT_PROFILES: Record<UtilityMode, WeightProfile> = {
-  0: { quality: 0.25, credibility: 0.15, proximity: 0.60 },
-  1: { quality: 0.55, credibility: 0.25, proximity: 0.20 },
-  2: { quality: 0.50, credibility: 0.30, proximity: 0.20 },
+  0: { quality: 0.20, credibility: 0.10, proximity: 0.45, relevance: 0.25 },
+  1: { quality: 0.40, credibility: 0.20, proximity: 0.15, relevance: 0.25 },
+  2: { quality: 0.50, credibility: 0.30, proximity: 0.20, relevance: 0.00 },
 }
 
 interface UtilityParams {
@@ -26,6 +27,10 @@ interface UtilityParams {
   // can take far longer than a 1km walk through a grid of streets.
   travelSeconds?: number
   maxTravelSeconds?: number
+  // 0-1: how well this place matches the searched category/intent (from Google's
+  // own text-relevance ranking). Undefined/no category search => treated as a
+  // neutral, non-penalizing match.
+  relevanceScore?: number
   mode?: UtilityMode
 }
 
@@ -36,6 +41,7 @@ export function computeUtilityScore({
   maxDistanceKm,
   travelSeconds,
   maxTravelSeconds,
+  relevanceScore,
   mode,
 }: UtilityParams): number {
   const qualityScore = rating != null ? rating / 5.0 : 0.5
@@ -49,7 +55,8 @@ export function computeUtilityScore({
       : maxDistanceKm > 0
         ? Math.max(0, 1 - distanceKm / maxDistanceKm)
         : 0
+  const relevance = relevanceScore ?? 1
 
   const w = WEIGHT_PROFILES[mode ?? 2]
-  return qualityScore * w.quality + credibilityScore * w.credibility + proximityScore * w.proximity
+  return qualityScore * w.quality + credibilityScore * w.credibility + proximityScore * w.proximity + relevance * w.relevance
 }
