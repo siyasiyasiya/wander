@@ -49,6 +49,10 @@ export function AppShell() {
   const [classifiedCategory, setClassifiedCategory] = useState('')
   const [narrateMap, setNarrateMap] = useState<Map<string, NarrateResult>>(new Map())
   const [realRouteMap, setRealRouteMap] = useState<Map<string, { seconds: number; meters: number }>>(new Map())
+  // How many times the user has dismissed a place ("not for me") in each
+  // primary category this session — a lightweight feedback signal that nudges
+  // future scoring away from categories they keep rejecting.
+  const [categoryPenalty, setCategoryPenalty] = useState<Map<string, number>>(new Map())
 
   const intentDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -230,7 +234,7 @@ export function AppShell() {
       const distanceKm = origin ? haversineKm(origin.lat, origin.lng, p.lat, p.lng) : 0
       const realSeconds = realRouteMap.get(`${p.place_id}:${travelMode}`)?.seconds
       const travelSeconds = origin ? (realSeconds ?? estimateTravelMinutes(distanceKm, travelMode) * 60) : 0
-      const utilityScore = computeUtilityScore({
+      const rawUtilityScore = computeUtilityScore({
         rating: base.rating,
         userRatingCount: base.reviews,
         distanceKm,
@@ -240,6 +244,10 @@ export function AppShell() {
         relevanceScore: base.relevanceScore,
         mode: intentMode,
       })
+      // Diminishing penalty per past "not for me" in this category this session —
+      // capped so a disliked category can still surface if nothing else is left.
+      const rejections = categoryPenalty.get(p.categories[0] ?? '') ?? 0
+      const utilityScore = rawUtilityScore * Math.max(0.4, 1 - rejections * 0.15)
 
       return {
         ...base,
@@ -249,7 +257,7 @@ export function AppShell() {
         tag: narrated?.tag ?? base.tag,
       }
     })
-  }, [rawPlaces, intentMode, googleDataMap, excludeIds, narrateMap, origin, realRouteMap, travelMode, timeBudget])
+  }, [rawPlaces, intentMode, googleDataMap, excludeIds, narrateMap, origin, realRouteMap, travelMode, timeBudget, categoryPenalty])
 
   const filtered = useMemo(() => (openOnly ? enriched.filter((p) => p.isOpenNow) : enriched), [enriched, openOnly])
 
@@ -363,8 +371,16 @@ export function AppShell() {
   const handleToggleOpenOnly = useCallback(() => setOpenOnly((v) => !v), [])
   const handleNotForMe = useCallback((placeId: string) => {
     setExcludeIds((prev) => (prev.includes(placeId) ? prev : [...prev, placeId]))
+    const category = enriched.find((p) => p.place_id === placeId)?.categories[0]
+    if (category) {
+      setCategoryPenalty((prev) => {
+        const next = new Map(prev)
+        next.set(category, (next.get(category) ?? 0) + 1)
+        return next
+      })
+    }
     setSelectedPlaceId(null)
-  }, [])
+  }, [enriched])
 
   return (
     <MapProvider>
