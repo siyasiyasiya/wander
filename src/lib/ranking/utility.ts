@@ -19,7 +19,10 @@ export function computeUtilityScore({
   maxTravelSeconds,
 }: UtilityParams): number {
   const qualityScore = rating != null ? rating / 5.0 : 0.5
-  const credibilityScore = userRatingCount != null ? Math.min(userRatingCount, 500) / 500 : 0
+  // Log-scaled instead of linear /500 — a handful of great reviews shouldn't be
+  // crushed by a mediocre chain with hundreds. log10(501) normalizes to 1 at the cap.
+  const credibilityScore =
+    userRatingCount != null ? Math.min(Math.log10(userRatingCount + 1) / Math.log10(501), 1) : 0
   const proximityScore =
     travelSeconds != null && maxTravelSeconds
       ? Math.max(0, 1 - travelSeconds / maxTravelSeconds)
