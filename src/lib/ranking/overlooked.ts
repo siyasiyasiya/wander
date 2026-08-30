@@ -1,16 +1,24 @@
+import { diversify } from './diversify'
+
 // Selects "excellent-but-overlooked" picks: excludes the top slice of the
-// utility-ranked pool (the "obvious" picks) so results never overlap with
-// `ranked`, then does seeded weighted sampling (Efraimidis–Spirakis) over
-// the remainder, weighted by utilityScore so quality still wins probabilistically.
+// utility-ranked pool (the "obvious" picks), then does seeded weighted sampling
+// (Efraimidis–Spirakis) over the remainder — weighted by a *novelty* score
+// (highly rated + few reviews) rather than raw utilityScore, so results lean
+// toward genuine hidden gems instead of just "popular things ranked #6-10".
+// A final diversity pass keeps the 3 picks from all landing in one category.
 // Pure function of (items, seed) — deterministic so "reroll" stays client-side.
 interface Scored {
   place_id: string
   utilityScore: number
+  rating: number
+  reviews: number
+  categories: string[]
 }
 
 const OBVIOUS_FRACTION = 0.3
 const MIN_REMAINDER = 3
 const EPS = 1e-3
+const MAX_PER_CATEGORY = 1
 
 function hashStr(str: string): number {
   let h = 2166136261
@@ -37,12 +45,18 @@ export function pickOverlooked<T extends Scored>(items: T[], seed: number, count
   )
   const pool = sorted.slice(excludeCount)
 
-  return pool
-    .map((item) => ({
-      item,
-      key: Math.pow(seededUnit(seed, item.place_id), 1 / Math.max(item.utilityScore, EPS)),
-    }))
+  const weighted = pool
+    .map((item) => {
+      // Rewards high rating, penalizes high review count — a well-loved place
+      // few people know about, not just "the next best thing after the top 30%".
+      const noveltyWeight = Math.max(item.rating, EPS) / Math.log2(item.reviews + 4)
+      return {
+        item,
+        key: Math.pow(seededUnit(seed, item.place_id), 1 / Math.max(noveltyWeight, EPS)),
+      }
+    })
     .sort((a, b) => b.key - a.key)
-    .slice(0, count)
     .map((w) => w.item)
+
+  return diversify(weighted, MAX_PER_CATEGORY).slice(0, count)
 }
