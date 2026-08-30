@@ -16,6 +16,7 @@ import { estimateTravelMinutes } from '@/lib/utils/travel'
 import { polygonAreaKm2 } from '@/lib/utils/geo'
 import { computeUtilityScore } from '@/lib/ranking/utility'
 import { pickOverlooked } from '@/lib/ranking/overlooked'
+import { diversify } from '@/lib/ranking/diversify'
 import type { GeoJSONPolygon, TravelMode } from '@/lib/isochrone/types'
 import type { PlaceBase, PlaceEnriched } from '@/lib/places/types'
 import type { RankedPlace } from '@/lib/ranking/types'
@@ -254,7 +255,7 @@ export function AppShell() {
 
   const ranked = useMemo(() => {
     if (!origin) return filtered
-    return [...filtered].sort((a, b) => b.utilityScore - a.utilityScore)
+    return diversify([...filtered].sort((a, b) => b.utilityScore - a.utilityScore))
   }, [filtered, origin])
 
   const wildPicks = useMemo(() => pickOverlooked(filtered, wildSeed + 1, 3), [filtered, wildSeed])
